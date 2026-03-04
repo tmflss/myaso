@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS: Резонанс Реальности</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;700&family=Stratos:wght@400;900&display=swap');
+
+        :root {
+            --bg-deep: #020204;
+            --bg-card: #08080a;
+            --accent: #00ff66;
+            --error: #ff0033;
+            --text-main: #f0f0f0;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-main: 'Stratos', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; cursor: none; }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            overflow-x: hidden;
+            transition: background 0.3s;
+        }
+
+        /* === ТОТ САМЫЙ ЕБАНУТЫЙ ЭФФЕКТ ПАНИКИ === */
+        .panic-mode {
+            animation: shake 0.1s infinite !important;
+            background-color: #1a0000 !important;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-1px, -2px) rotate(-1deg); }
+            40% { transform: translate(-3px, 0px) rotate(1deg); }
+            60% { transform: translate(3px, 2px) rotate(0deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            pointer-events: none; z-index: 1000;
+        }
+
+        /* Кастомный курсор */
+        #cursor { position: fixed; width: 8px; height: 8px; background: var(--accent); border-radius: 50%; pointer-events: none; z-index: 10001; transform: translate(-50%, -50%); }
+        #cursor-ring { position: fixed; width: 40px; height: 40px; border: 1px solid var(--accent); border-radius: 50%; pointer-events: none; z-index: 10000; transform: translate(-50%, -50%); transition: all 0.1s ease-out; }
+
+        .container { max-width: 1300px; margin: 0 auto; padding: 0 40px; }
+
+        /* Hero */
+        header { height: 100vh; display: flex; flex-direction: column; justify-content: center; position: relative; }
+        h1 { font-size: clamp(3rem, 12vw, 10rem); font-weight: 900; line-height: 0.85; letter-spacing: -6px; text-transform: uppercase; }
+        .hero-sub { color: var(--accent); font-family: var(--font-mono); margin-bottom: 20px; font-size: 0.8rem; letter-spacing: 2px; }
+
+        /* Dashboard */
+        .dashboard {
+            display: grid; grid-template-columns: 1fr 380px;
+            background: var(--bg-card); border: 1px solid #1a1a1c;
+            height: 650px; margin: 80px 0;
+        }
+        .viewport { background: #000; position: relative; overflow: hidden; border-right: 1px solid #1a1a1c; }
+        .panel { padding: 30px; display: flex; flex-direction: column; font-family: var(--font-mono); }
+        .terminal { flex-grow: 1; font-size: 0.7rem; color: var(--accent); overflow: hidden; line-height: 1.6; border-bottom: 1px solid #222; margin-bottom: 20px; }
+        
+        /* Мерцание ошибок */
+        .critical { color: var(--error); animation: flicker 0.2s infinite; font-weight: bold; }
+        @keyframes flicker { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+
+        .big-data .val { font-size: 2rem; font-weight: bold; margin-bottom: 15px; }
+        
+        .btn {
+            background: transparent; border: 1px solid var(--accent); color: var(--accent);
+            padding: 20px; font-family: var(--font-mono); font-size: 0.8rem; transition: 0.3s; cursor: pointer;
+        }
+        .btn:hover { background: var(--accent); color: #000; }
+        
+        /* Кнопка в режиме паники */
+        .btn.panic { border-color: var(--error); color: var(--error); }
+        .btn.panic:hover { background: var(--error); color: #fff; }
+
+        /* Content Sections */
+        .section { padding: 100px 0; border-top: 1px solid #111; }
+        .tag { font-family: var(--font-mono); color: var(--accent); font-size: 0.8rem; margin-bottom: 20px; display: block; }
+        h2 { font-size: 3.5rem; margin-bottom: 50px; line-height: 1; }
+        
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; }
+        .card { padding: 40px; background: var(--bg-card); border: 1px solid #111; transition: 0.3s; }
+        .card:hover { border-color: var(--accent); transform: translateY(-5px); }
+        .card h3 { font-family: var(--font-mono); color: var(--accent); margin-bottom: 20px; font-size: 1rem; }
+        .card p { color: #aaa; font-size: 1.05rem; line-height: 1.6; }
+
+        /* === ТА САМАЯ ПЛАШКА ПОСЛЕДСТВИЙ === */
+        #consequences-box {
+            position: fixed; bottom: 30px; left: 30px; width: 380px;
+            background: var(--error); color: #fff; padding: 25px;
+            font-family: var(--font-mono); font-size: 0.85rem;
+            display: none; z-index: 1001; box-shadow: 15px 15px 0 #000;
+        }
+
+        footer { padding: 60px 0; text-align: center; font-family: var(--font-mono); color: #333; font-size: 0.8rem; border-top: 1px solid #111; }
+    </style>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+    <div id="cursor"></div>
+    <div id="cursor-ring"></div>
+
+    <div id="consequences-box">
+        <div style="font-weight:700; border-bottom: 1px solid #fff; margin-bottom:10px; padding-bottom:5px;">⚠️ ЭКСТРЕННАЯ СВОДКА ХАОСА:</div>
+        <div id="consequence-text">Ожидание десинхронизации...</div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="hero-sub">> ИСТОЧНИК СИГНАЛА: ОРБИТАЛЬНАЯ ГРУППИРОВКА [NAVSTAR]</div>
+            <h1>ГЕОМЕТРИЯ <br> ПУСТОТЫ</h1>
+        </header>
+
+        <section class="section">
+            <span class="tag">ИНТЕРАКТИВНЫЙ ТЕРМИНАЛ КОНТРОЛЯ</span>
+            <div class="dashboard" id="db-frame">
+                <div class="viewport">
+                    <canvas id="navCanvas"></canvas>
+                </div>
+                <div class="panel">
+                    <div class="terminal" id="logger">
+                        <div>> Канал связи L1: 1575.42 MHz</div>
+                        <div>> Квантовая синхронизация: OK</div>
+                        <div>> Коррекция ОТО/СТО: ACTIVE</div>
+                    </div>
+                    <div class="big-data">
+                        <div style="font-size: 0.6rem; color: #444; text-transform: uppercase;">Дрифт координат (ошибка)</div>
+                        <div class="val" id="driftVal">0.00 M</div>
+                        <div style="font-size: 0.6rem; color: #444; text-transform: uppercase;">Статус времени</div>
+                        <div class="val" id="timeStatus" style="color:var(--accent)">NORMAL</div>
+                    </div>
+                    <button class="btn" id="panicBtn">ИСКЛЮЧИТЬ ЭЙНШТЕЙНА</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <span class="tag">АРХИВЫ СИСТЕМЫ / ИСТОРИЯ</span>
+            <h2>Почему инженеры не верили?</h2>
+            <div class="info-grid">
+                <div class="card">
+                    <h3>Битва за NTS-2 (1977)</h3>
+                    <p>Разработчики GPS сомневались в теории относительности. На спутнике NTS-2 стоял синтезатор частоты. Его включили без правок — через 20 дней часы ушли на 4.4 миллисекунды, подтвердив Эйнштейна с точностью до 0.01%. Выключатель ОТО больше не трогали.</p>
+                </div>
+                <div class="card">
+                    <h3>Атомное сердце</h3>
+                    <p>На борту каждого спутника — атомные часы (рубидиевые или цезиевые). Они настолько точны, что погрешность в одну секунду накопится только через 300 000 лет. Но даже они бессильны против искривления времени.</p>
+                </div>
+                <div class="card">
+                    <h3>Эффект Саньяка</h3>
+                    <p>Земля вращается. Пока сигнал идет от спутника к тебе, твой приемник успевает сместиться в пространстве. Без учета этого вращения ошибка составит еще сотни метров, путая координаты.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <span class="tag">ПОМЕХИ РЕАЛЬНОСТИ / ТЕХНИКА</span>
+            <h2>Что еще ломает сигнал?</h2>
+            <div class="info-grid">
+                <div class="card">
+                    <h3>Ионосфера</h3>
+                    <p>На высоте 50-1000 км свободные электроны замедляют радиоволны. Это вносит погрешность до 10 метров. Спутники передают данные о состоянии атмосферы для коррекции этой задержки.</p>
+                </div>
+                <div class="card">
+                    <h3>Тропосфера</h3>
+                    <p>Обычный водяной пар и давление воздуха заставляют сигнал «петлять». Это добавляет еще 2-3 метра непредсказуемой ошибки, зависящей от погоды.</p>
+                </div>
+                <div class="card">
+                    <h3>Многолучевость</h3>
+                    <p>В городе сигнал отражается от небоскребов и зеркал. Твой телефон ловит «эхо» вместо прямого луча, из-за чего на карте ты иногда «прыгаешь» сквозь здания.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        GPS RELATIVITY PROJECT // 2026 // NO MAGIC, JUST TENSORS // [КОДА МНОГО, ЭФФЕКТЫ ЕБАНУТЫЕ]
+    </footer>
+
+    <script>
+        // Курсор
+        const cur = document.getElementById('cursor');
+        const ring = document.getElementById('cursor-ring');
+        window.onmousemove = e => {
+            cur.style.left = ring.style.left = e.clientX + 'px';
+            cur.style.top = ring.style.top = e.clientY + 'px';
+        };
+
+        // Симуляция
+        const canvas = document.getElementById('navCanvas');
+        const ctx = canvas.getContext('2d');
+        const btn = document.getElementById('panicBtn');
+        const logger = document.getElementById('logger');
+        const driftDisplay = document.getElementById('driftVal');
+        const timeDisplay = document.getElementById('timeStatus');
+        const consBox = document.getElementById('consequences-box');
+        const consText = document.getElementById('consequence-text');
+
+        let isSafe = true;
+        let drift = 0;
+        let angle = 0;
+
+        // Те самые катастрофы
+        const events = [
+            "CRITICAL: Рейс SU-142 потерял курс над Атлантикой",
+            "ERROR: Танкер 'Everest' сел на мель в Суэцком канале",
+            "ALERT: Остановка торгов на бирже NYSE (десинхр.)",
+            "WARNING: Tesla Model S: Столкновение на автопилоте",
+            "SYSTEM: Накопленная ошибка превысила 11 км (Сутки без ОТО)",
+            "дроны доставки: Массовое падение в жилых зонах"
+        ];
+
+        btn.onclick = () => {
+            isSafe = !isSafe;
+            btn.innerText = isSafe ? "ИСКЛЮЧИТЬ ЭЙНШТЕЙНА" : "ВОССТАНОВИТЬ РЕАЛЬНОСТЬ";
+            btn.classList.toggle('panic');
+            
+            // Включаем/выключаем ТОТ САМЫЙ режим паники
+            document.body.classList.toggle('panic-mode');
+            
+            // Показываем/скрываем ТУ САМУЮ плашку
+            consBox.style.display = isSafe ? 'none' : 'block';
+            
+            timeDisplay.innerText = isSafe ? "NORMAL" : "CRITICAL";
+            timeDisplay.style.color = isSafe ? "var(--accent)" : "var(--error)";
+            
+            log(isSafe ? "> Рестарт протоколов синхронизации ОТО..." : "<span class='critical'>> ПРЕДУПРЕЖДЕНИЕ: КОРРЕКЦИЯ ОТО ОТКЛЮЧЕНА! ВРЕМЯ ПОШЛО ПРАХОМ!</span>");
+            
+            if(!isSafe) {
+                // Сразу генерим первую катастрофу
+                consText.innerText = events[Math.floor(Math.random() * events.length)];
+            } else {
+                drift = 0; // Плавный сброс дрифта
+            }
+        };
+
+        function log(msg) {
+            const d = document.createElement('div');
+            d.innerHTML = msg;
+            logger.prepend(d);
+            if(logger.children.length > 18) logger.lastChild.remove();
+        }
+
+        function draw() {
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Планета (Radar Style)
+            ctx.beginPath();
+            ctx.arc(cx, cy, 60, 0, Math.PI*2);
+            ctx.strokeStyle = isSafe ? '#111' : '#500';
+            ctx.lineWidth = isSafe ? 1 : 2;
+            ctx.stroke();
+
+            // Спутники и Лучи
+            for(let i=0; i<4; i++) {
+                let a = angle + (i * Math.PI/2);
+                let x = cx + Math.cos(a) * 190;
+                let y = cy + Math.sin(a) * 190;
+                
+                // Луч сигнала (меняет цвет)
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                // Точка юзера смещается при дрифте
+                const userX = cx + (isSafe ? 0 : drift * 1.8);
+                const userY = cy - 40;
+                ctx.lineTo(userX, userY);
+                ctx.strokeStyle = isSafe ? 'rgba(0, 255, 102, 0.1)' : 'rgba(255, 0, 51, 0.25)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Спутник (точка)
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(x-2, y-2, 4, 4);
+            }
+
+            // Логика дрифта и паники
+            if(!isSafe) {
+                drift += 0.45; // Быстрое накопление ошибки
+                
+                // Рандомные лаги терминала и плашки
+                if(Math.random() > 0.96) {
+                    log("<span style='color:var(--error)'>BIT_ERROR: [0x" + Math.random().toString(16).slice(2,8) + "]</span>");
+                    
+                    // Меняем текст катастрофы
+                    ctx.fillStyle = 'rgba(255,0,0,0.1)'; // Вспышка на канвасе
+                    ctx.fillRect(0,0,canvas.width, canvas.height);
+                    consText.innerText = events[Math.floor(Math.random() * events.length)];
+                }
+            } else {
+                drift *= 0.92; // Медленный возврат к норме
+            }
+
+            // Отображение ошибки
+            const finalDrift = (drift * 21.3).toFixed(2);
+            driftDisplay.innerText = finalDrift + " M";
+            driftDisplay.style.color = drift > 8 ? "var(--error)" : "#fff";
+
+            // Метка пользователя (зеленая/красная)
+            const ux = cx + (isSafe ? 0 : drift * 1.8);
+            const uy = cy - 40;
+            ctx.fillStyle = isSafe ? 'var(--accent)' : 'var(--error)';
+            ctx.beginPath();
+            ctx.arc(ux, uy, 5, 0, Math.PI*2);
+            ctx.fill();
+            
+            // Подпись ошибки на карте
+            if(drift > 5) {
+                ctx.font = '10px JetBrains Mono';
+                ctx.fillStyle = 'var(--error)';
+                ctx.fillText("ОШИБКА ПОЗИЦИИ", ux + 12, uy + 3);
+            }
+
+            angle += 0.006; // Вращение спутников
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+    </script>
+</body>
+</html>
